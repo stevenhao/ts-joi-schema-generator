@@ -1,2 +1,2 @@
 /** @schema */
-export interface TypeC {};
+export interface ITypeC {}

@@ -1,9 +1,9 @@
 /** @schema */
-export interface TypeB { };
+export interface ITypeB {}
 
 // import and export on separate lines
-import { TypeC } from './imports-child-c';
-export { TypeC };
+import { ITypeC } from './imports-child-c';
+export { ITypeC };
 
 // inline export shorthand
-export { TypeD } from './imports-child-d';
+export { ITypeD } from './imports-child-d';

@@ -1,4 +1,4 @@
 /** @schema */
 export interface ITest<T> {
-    field: T;
+    field: T
 }

@@ -1,11 +1,11 @@
 import * as Joi from '@hapi/joi';
 
-import { TypeASchema } from './imports-child-a-schema';
-import { TypeBSchema, TypeCSchema, TypeDSchema } from './imports-child-b-schema';
+import { ITypeASchema } from './imports-child-a-schema';
+import { ITypeBSchema, ITypeCSchema, ITypeDSchema } from './imports-child-b-schema';
 
-export const TypeAllSchema = Joi.object().keys({
-  a: Joi.lazy(() => TypeASchema).required(),
-  b: Joi.lazy(() => TypeBSchema).required(),
-  c: Joi.lazy(() => TypeCSchema).required(),
-  d: Joi.lazy(() => TypeDSchema).required(),
+export const ITypeAllSchema = Joi.object().keys({
+  a: Joi.lazy(() => ITypeASchema).required(),
+  b: Joi.lazy(() => ITypeBSchema).required(),
+  c: Joi.lazy(() => ITypeCSchema).required(),
+  d: Joi.lazy(() => ITypeDSchema).required(),
 }).strict();

@@ -1,2 +1,2 @@
 /** @schema */
-export interface TypeA {};
+export interface ITypeA {}

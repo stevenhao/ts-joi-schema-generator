@@ -1,4 +1,3 @@
 import * as Joi from '@hapi/joi';
 
-export const TypeCSchema = Joi.object().keys({
-}).strict();
+export const ITypeCSchema = Joi.object().strict();

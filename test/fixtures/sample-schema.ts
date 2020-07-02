@@ -1,36 +1,78 @@
 import * as Joi from '@hapi/joi';
 
-export const SomeEnumSchemaFoo = Joi.valid(0);
-export const SomeEnumSchemaBar = Joi.valid(1);
-export const SomeEnumSchema = Joi.alternatives(SomeEnumSchemaFoo, SomeEnumSchemaBar)
+export const SomeEnumSchema = (() => {
+  const members = {
+    Foo: Joi.valid(0),
+    Bar: Joi.valid(1),
+  };
+  return {
+    ...Joi.valid(0, 1),
+    members,
+  };
+})();
 
-export const DirectionSchemaUp = Joi.valid(1);
-export const DirectionSchemaDown = Joi.valid(2);
-export const DirectionSchemaLeft = Joi.valid(17);
-export const DirectionSchemaRight = Joi.valid(18);
-export const DirectionSchema = Joi.alternatives(DirectionSchemaUp, DirectionSchemaDown, DirectionSchemaLeft, DirectionSchemaRight)
+export const DirectionSchema = (() => {
+  const members = {
+    Up: Joi.valid(1),
+    Down: Joi.valid(2),
+    Left: Joi.valid(17),
+    Right: Joi.valid(18),
+  };
+  return {
+    ...Joi.valid(1, 2, 17, 18),
+    members,
+  };
+})();
 
-export const DirectionStrSchemaUp = Joi.valid("UP");
-export const DirectionStrSchemaDown = Joi.valid("DOWN");
-export const DirectionStrSchemaLeft = Joi.valid("LEFT");
-export const DirectionStrSchemaRight = Joi.valid("RIGHT");
-export const DirectionStrSchema = Joi.alternatives(DirectionStrSchemaUp, DirectionStrSchemaDown, DirectionStrSchemaLeft, DirectionStrSchemaRight)
+export const DirectionStrSchema = (() => {
+  const members = {
+    Up: Joi.valid("UP"),
+    Down: Joi.valid("DOWN"),
+    Left: Joi.valid("LEFT"),
+    Right: Joi.valid("RIGHT"),
+  };
+  return {
+    ...Joi.valid("UP", "DOWN", "LEFT", "RIGHT"),
+    members,
+  };
+})();
 
-export const BooleanLikeHeterogeneousEnumSchemaNo = Joi.valid(0);
-export const BooleanLikeHeterogeneousEnumSchemaYes = Joi.valid("YES");
-export const BooleanLikeHeterogeneousEnumSchema = Joi.alternatives(BooleanLikeHeterogeneousEnumSchemaNo, BooleanLikeHeterogeneousEnumSchemaYes)
+export const BooleanLikeHeterogeneousEnumSchema = (() => {
+  const members = {
+    No: Joi.valid(0),
+    Yes: Joi.valid("YES"),
+  };
+  return {
+    ...Joi.valid(0, "YES"),
+    members,
+  };
+})();
 
-export const EnumComputedSchemaFoo = Joi.valid(0);
-export const EnumComputedSchemaBar = Joi.valid(17);
-export const EnumComputedSchemaBaz = Joi.valid(16);
-export const EnumComputedSchema = Joi.alternatives(EnumComputedSchemaFoo, EnumComputedSchemaBar, EnumComputedSchemaBaz)
+export const EnumComputedSchema = (() => {
+  const members = {
+    Foo: Joi.valid(0),
+    Bar: Joi.valid(17),
+    Baz: Joi.valid(16),
+  };
+  return {
+    ...Joi.valid(0, 17, 16),
+    members,
+  };
+})();
 
-export const AnimalFlagsSchemaNone = Joi.valid(0);
-export const AnimalFlagsSchemaHasClaws = Joi.valid(1);
-export const AnimalFlagsSchemaCanFly = Joi.valid(2);
-export const AnimalFlagsSchemaEatsFish = Joi.valid(4);
-export const AnimalFlagsSchemaEndangered = Joi.valid(8);
-export const AnimalFlagsSchema = Joi.alternatives(AnimalFlagsSchemaNone, AnimalFlagsSchemaHasClaws, AnimalFlagsSchemaCanFly, AnimalFlagsSchemaEatsFish, AnimalFlagsSchemaEndangered)
+export const AnimalFlagsSchema = (() => {
+  const members = {
+    None: Joi.valid(0),
+    HasClaws: Joi.valid(1),
+    CanFly: Joi.valid(2),
+    EatsFish: Joi.valid(4),
+    Endangered: Joi.valid(8),
+  };
+  return {
+    ...Joi.valid(0, 1, 2, 4, 8),
+    members,
+  };
+})();
 
 export const ICacheItemSchema = Joi.object().keys({
   key: Joi.alternatives(
@@ -88,10 +130,10 @@ export const ISamplingSchema = Joi.object().concat(ICacheItemSchema).keys({
   xDirection: Joi.lazy(() => DirectionSchema).required(),
   xDirectionStr: Joi.lazy(() => DirectionStrSchema).required(),
   xDirUp: Joi.alternatives(
-    Joi.lazy(() => DirectionSchemaUp),
-    Joi.lazy(() => DirectionSchemaLeft)
+    Joi.lazy(() => DirectionSchema.members.Up),
+    Joi.lazy(() => DirectionSchema.members.Left)
   ).required(),
-  xDirStrLeft: Joi.lazy(() => DirectionStrSchemaLeft).required(),
+  xDirStrLeft: Joi.lazy(() => DirectionStrSchema.members.Left).required(),
   ximplicit: Joi.any().required(),
   ximplicitFunc: Joi.func().required(),
   ximplicitFunc2: Joi.func().required(),

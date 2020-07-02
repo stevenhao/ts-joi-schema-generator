@@ -1,2 +1,2 @@
 /** @schema */
-export interface TypeD {};
+export interface ITypeD {}
