@@ -8,4 +8,4 @@ export const ITypeAllSchema = Joi.object().keys({
   b: Joi.lazy(() => ITypeBSchema).required(),
   c: Joi.lazy(() => ITypeCSchema).required(),
   d: Joi.lazy(() => ITypeDSchema).required(),
-}).strict();
+}).required().strict();

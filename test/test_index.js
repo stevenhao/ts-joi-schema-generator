@@ -10,7 +10,7 @@ const fixtures = path.join(__dirname, 'fixtures');
 const schemaPath = (file) => path.relative('./', path.join(fixtures, file));
 
 const expectSchema = async (input, files) => {
-  const output = SchemaProgram.compile({ tscArgs: [schemaPath(input)], render: 'joi-15' });
+  const output = SchemaProgram.compile({ tscArgs: ['--strict', schemaPath(input)], render: 'joi-15' });
 
   const expected = await Promise.all(files.map(async (file) => {
     const realFile = schemaPath(file);
@@ -29,7 +29,7 @@ describe('ts-interface-builder', () => {
   });
 
   it('should fail generics', async () => {
-    expect(() => SchemaProgram.compile({ tscArgs: [schemaPath('fail-generics.ts')], render: 'joi-15' }))
+    expect(() => SchemaProgram.compile({ tscArgs: ['--strict', schemaPath('fail-generics.ts')], render: 'joi-15' }))
       .to.throw(Error, 'Generics are not yet supported by ts-joi-schema-generator: ITest<T>');
   });
 

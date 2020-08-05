@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as Defaults from '../defaults';
 import { SchemaProgram, ICompilerOptions } from '../SchemaProgram';
-import { BaseSchemaBuilder, SchemaType, IImportDeclaration, IExportDeclaration, IEnumDeclaration, IInterfaceDeclaration, ITypeDeclaration, IMemberDeclaration, Indexer, INumberSchemaType, ITupleSchemaType, IUnionSchemaType, IArraySchemaType, IObjectSchemaType, IStringSchemaType, ITypeAccessSchemaType, ITypeReferenceSchemaType, INewLiteralSchemaType, ILiteralSchemaType, IBaseSchemaType, IIntersectionSchemaType } from './BaseSchemaBuilder';
+import { BaseSchemaBuilder, SchemaType, IImportDeclaration, IExportDeclaration, IEnumDeclaration, IInterfaceDeclaration, ITypeDeclaration, IMemberDeclaration, Indexer, INumberSchemaType, ITupleSchemaType, IUnionSchemaType, IArraySchemaType, IObjectSchemaType, IStringSchemaType, ITypeAccessSchemaType, ITypeReferenceSchemaType, ILiteralSchemaType, IBaseSchemaType, IIntersectionSchemaType } from './BaseSchemaBuilder';
 
 interface IRenderContext {
   readonly isRequired: boolean
@@ -109,7 +109,7 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
     return `export const ${this.toSchemaName(declaration.name)} = ${this.indent(() => this.renderSchemaType(declaration.type))}.strict(true);\n\n`;
   }
 
-  private renderSchemaType(type: SchemaType, required = false): string {
+  private renderSchemaType(type: SchemaType, required = true): string {
     let tempCount = 0;
     let tsignore = false;
     const temps: Array<{ name: string, type: string }> = [];
@@ -154,7 +154,6 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
       case 'void':
       case 'undefined': return this.renderUndefined(type);
       case 'literal': return this.renderLiteral(type);
-      case 'new-literal': return this.renderNewLiteral(type);
       case 'type-reference': return this.renderTypeReference(type);
       case 'type-access': return this.renderTypeAccess(type);
       case 'string': return this.renderString(type);
@@ -169,11 +168,11 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderAny(_type: IBaseSchemaType<'any' | 'unknown'>): string {
-    return 'mixed()';
+    return this.required('mixed()');
   }
 
   private renderFunc(_type: IBaseSchemaType<'func'>): string {
-    throw new Error('Function not supported');
+    return this.required(`mixed().test('func', '\${path} is not a function', (value) => typeof value === 'function')`);
   }
 
   private renderDate(_type: IBaseSchemaType<'date'>): string {
@@ -181,19 +180,19 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderBuffer(_type: IBaseSchemaType<'buffer'>): string {
-    throw new Error('Buffer not supported');
+    return this.required(`mixed().test('buffer', '\${path} is not a Buffer', (value) => Buffer.isBuffer(value))`);
   }
 
   private renderSymbol(_type: IBaseSchemaType<'symbol'>): string {
-    throw new Error('Symbol not supported');
+    return this.required(`mixed().test('symbol', '\${path} is not a Symbol', (value) => typeof value === 'symbol')`);
   }
 
   private renderNull(_type: IBaseSchemaType<'null'>): string {
-    return this.required('mixed().oneOf([null] as const)');
+    return 'mixed().oneOf([null] as const)';
   }
 
   private renderNever(_type: IBaseSchemaType<'never'>): string {
-    throw new Error('Never not supported');
+    return `mixed().test('never', '\${path} is not allowed', (value) => value === void 0)`;
   }
 
   private renderBoolean(_type: IBaseSchemaType<'boolean'>): string {
@@ -201,15 +200,14 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderUndefined(_type: IBaseSchemaType<'undefined' | 'void'>): string {
-    return this.required('mixed().oneOf([undefined] as const)');
+    return 'mixed().oneOf([undefined] as const)';
   }
 
   private renderLiteral(type: ILiteralSchemaType): string {
-    return this.required(`mixed().oneOf([${type.rawLiteral}] as const)`);
-  }
-
-  private renderNewLiteral(type: INewLiteralSchemaType): string {
-    if (typeof type.value === 'object') { throw new Error('BigInt not supported'); } else return `mixed().oneOf([${JSON.stringify(type.value)}] as const)`;
+    if (typeof type.value === 'object') {
+      throw new Error('BigInt not supported');
+    }
+    return this.required(`mixed().oneOf([${JSON.stringify(type.value)}] as const)`);
   }
 
   private renderTypeReference(type: ITypeReferenceSchemaType): string {
@@ -232,30 +230,61 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
     return this.required(`array().of(${this.renderSchemaType(type.of)})`);
   }
 
-  private renderUnion(_type: IUnionSchemaType): string {
-    throw new Error('Union not supported');
+  private renderUnion(type: IUnionSchemaType): string {
+    return [
+      `mixed().test('union', '\${path} is not part of the union', (value) => [`,
+      ...[type.of.map((t) => this.indent(() => this.renderSchemaType(t, true))).join(',\n')],
+      `${this.indent(-1)}].some((schema) => schema.isValidSync(value)))`
+    ].join('\n');
   }
 
-  private renderTuple(_type: ITupleSchemaType): string {
-    throw new Error('Tuple not supported');
+  private renderTuple(type: ITupleSchemaType): string {
+    return [
+      `mixed().test('tuple', '\${path} is incompatible with tuple', (value) => Array.isArray(value) && value.length === ${type.of.length} && [`,
+      ...[type.of.map((t) => this.indent(() => this.renderSchemaType(t, true))).join(',\n')],
+      `${this.indent(-1)}].every((schema, index) => schema.isValidSync(value[index])))`
+    ].join('\n');
   }
 
   private renderNumber(type: INumberSchemaType): string {
-    const num = [
+    const schema = [
       'number()',
       type.integer ? '.integer()' : false,
       type.min !== undefined ? `.min(${type.min})` : false,
       type.max !== undefined ? `.max(${type.max})` : false,
     ];
-    return this.required(num.filter((part) => part !== false).join(''));
+    return this.required(schema.filter((part) => part !== false).join(''));
   }
 
   private renderBigInt(_type: IBaseSchemaType<'bigint'>): string {
     throw new Error('BigInt not supported');
   }
 
-  private renderIntersection(_type: IIntersectionSchemaType): string {
-    throw new Error('Intersection currently not supported');
+  private renderIntersection(type: IIntersectionSchemaType): string {
+    const of = type.of;
+    const objects = of.filter((type) => type.type === 'object');
+    const unions = of.filter((type) => type.type === 'union');
+    if ((objects.length + unions.length) < of.length) {
+      throw new Error(`Invalid intersection`);
+    }
+
+    const baseConcats = objects.map((type) => `\n${this.indent()}.concat(${this.renderSchemaType(type, true)})`);
+    const baseObject = `object()${baseConcats.join('')}`;
+
+    if (unions.length === 0) {
+      return baseObject;
+    }
+
+    const indent = this.indent(1);
+    const baseJoi = this.context.addTempType(baseObject);
+    const unionsJoi = unions.map((union) => this.context.addTempType(this.renderSchemaType(union, true)));
+    const declarations = `\n${indent}let result: boolean;`;
+
+    const checks = [baseJoi, ...unionsJoi].map((temp) => {
+      return `\n${indent}result = ${temp}.isValidSync(value);\n${indent}if (!result) return false`;
+    }).join('');
+
+    return `mixed().test('union', '\${path} is not a valid intersection', (value) => {${declarations}${checks}\n${indent}return value;\n${this.indent()}}})`;
   }
 
   private required(type: string): string {
@@ -288,7 +317,7 @@ export class YupSchemaBuilder extends BaseSchemaBuilder {
     if (member.indexer) {
       return '';
     }
-    const type = this.indent(() => this.renderSchemaType(member.type, member.required));
+    const type = this.indent(() => this.renderSchemaType(member.type));
     return `${indent}${member.name}: ${type},\n`;
   }
 

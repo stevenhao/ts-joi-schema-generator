@@ -1,7 +1,7 @@
 /** @schema */
 interface ICacheItem {
   /** @regex /^key-\d+$/ */
-  key: string|null
+  key: string | null
   value: any
   size: number
   tag?: string
@@ -61,6 +61,7 @@ export enum AnimalFlags {
 // random comment.
 /** @schema */
 export interface ISampling extends ICacheItem {
+  xboolean: boolean
   xstring: string
   'xstring2': string
   xany: any
@@ -82,17 +83,22 @@ export interface ISampling extends ICacheItem {
   xarray: string[]
   xarray2: MyType[]
   xtuple: [string, number]
+  xtuple2: [string, number?, ...1[]]
   xunion: number | null
+  xunion2: number | boolean
   xparen: (number|string)    // parenthesized type
   xiface: { foo: string, bar: number }
+  xiface2: { foo: MyType, bar: NumberAlias2 }
   xliteral: 'foo' | 'ba\'r' | 3
   xfunc: (price: number, quantity: number) => number
   xfunc2(price: number, quantity?: number): number
   xDirection: Direction
   xDirectionStr: DirectionStr
   // Ensure we support enum constants, often used for discriminated unions.
-  xDirUp: Direction.Up | Direction.Left
+  xDirUp: Direction.Up | Direction.Left | Direction.Right
   xDirStrLeft: DirectionStr.Left
+  xnever: never
+  xundefined: undefined
 
   // Ensure that omitted type parameters are seen as 'any', without causing errors.
   // @ts-ignore

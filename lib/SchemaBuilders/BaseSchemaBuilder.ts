@@ -42,7 +42,6 @@ export interface IMemberDeclaration {
   name: string
   indexer?: Indexer
   type: SchemaType
-  required: boolean
 }
 
 export type Indexer = {
@@ -86,6 +85,8 @@ export interface IArraySchemaType extends IBaseSchemaType<'array'> {
 
 export interface ITupleSchemaType extends IBaseSchemaType<'tuple'> {
   of: SchemaType[]
+  minLength: number
+  restElement?: SchemaType
 }
 
 export interface IUnionSchemaType extends IBaseSchemaType<'union'> {
@@ -97,10 +98,6 @@ export interface IIntersectionSchemaType extends IBaseSchemaType<'intersection'>
 }
 
 export interface ILiteralSchemaType extends IBaseSchemaType<'literal'> {
-  rawLiteral: string
-}
-
-export interface INewLiteralSchemaType extends IBaseSchemaType<'new-literal'> {
   value: string | number | ts.PseudoBigInt | boolean
 }
 
@@ -127,7 +124,6 @@ export type SchemaType =
   | IUnionSchemaType
   | IIntersectionSchemaType
   | ILiteralSchemaType
-  | INewLiteralSchemaType
   ;
 
 export interface ISchema {

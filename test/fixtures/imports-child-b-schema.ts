@@ -4,4 +4,4 @@ import { ITypeCSchema } from './imports-child-c-schema';
 export { ITypeCSchema };
 export { ITypeDSchema } from './imports-child-d-schema';
 
-export const ITypeBSchema = Joi.object().strict();
+export const ITypeBSchema = Joi.object().required().strict();

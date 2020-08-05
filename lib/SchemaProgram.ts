@@ -29,7 +29,7 @@ interface IMappedTypeContext {
 interface ICompilerContext {
   schema: BaseSchemaBuilder
   mappedTypeContext: IMappedTypeContext[]
-  currentProperty?: ts.PropertySignature | ts.IndexSignatureDeclaration
+  properties: ts.Declaration[]
 }
 
 interface ICompilationResult {
@@ -98,6 +98,10 @@ export class SchemaProgram {
     return this.contexts[this.contexts.length - 1];
   }
 
+  private get property(): ts.Declaration {
+    return this.context.properties[this.context.properties.length - 1];
+  }
+
   private get schema(): BaseSchemaBuilder {
     return this.context.schema;
   }
@@ -164,8 +168,8 @@ export class SchemaProgram {
     console.warn(`compileNode ${ts.SyntaxKind[node.kind]} not supported by ts-joi-schema-generator: ${node.getText()}`);
   }
 
-  private compileOptType(typeNode: ts.Node | undefined): SchemaType {
-    return typeNode ? this.compileType(typeNode) : { type: 'any' };
+  private compileOptType(typeNode: ts.TypeNode | undefined): SchemaType {
+    return typeNode ? this.compileType(typeNode) : { type: 'any', required: true };
   }
 
   private compileTypeElements(members: ts.NodeArray<ts.TypeElement>): IMemberDeclaration[] {
@@ -182,23 +186,29 @@ export class SchemaProgram {
   }
 
   private compilePropertySignature(node: ts.PropertySignature): IMemberDeclaration {
-    this.context.currentProperty = node;
+    this.context.properties.push(node);
 
     const name = this.getName(node.name);
     const type = this.compileOptType(node.type);
+    if (type.required) {
+      type.required = !node.questionToken;
+    }
 
-    this.context.currentProperty = undefined;
-    return { name, type, required: !node.questionToken };
+    this.context.properties.pop();
+    return { name, type };
   }
 
   private compileIndexSignatureDeclaration(node: ts.IndexSignatureDeclaration): IMemberDeclaration {
     const pattern = this.getTag(node, 'pattern');
     const indexerType = this.compileOptType(node.parameters[0].type);
-    this.context.currentProperty = node;
+    this.context.properties.push(node);
 
     const type = this.compileOptType(node.type);
+    if (type.required) {
+      type.required = !node.questionToken;
+    }
 
-    this.context.currentProperty = undefined;
+    this.context.properties.pop();
     return {
       type,
       name: 'indexer',
@@ -207,166 +217,29 @@ export class SchemaProgram {
           ? { type: 'string', pattern: pattern && pattern.comment ? pattern.comment.trim() : undefined }
           : { type: 'number' }
       ),
-      required: !node.questionToken
     };
   }
 
   private compileMethodSignature(node: ts.MethodSignature): IMemberDeclaration {
     return {
-      type: { type: 'func' },
+      type: { type: 'func', required: !node.questionToken },
       name: this.getName(node.name),
-      required: !node.questionToken,
     };
   }
 
-  private compileTypes(types: ts.NodeArray<ts.Node>): SchemaType[] {
+  private compileTypes(types: ts.NodeArray<ts.TypeNode>): SchemaType[] {
     return types.map((type) => this.compileType(type));
   }
 
-  private compileType(node: ts.Node): SchemaType {
-    switch (node.kind) {
-      case ts.SyntaxKind.Identifier: return this.compileIdentifier(node as ts.Identifier);
-      case ts.SyntaxKind.TypeReference: return this.compileTypeReferenceNode(node as ts.TypeReferenceNode);
-      case ts.SyntaxKind.FunctionType: return this.compileFunctionTypeNode(node as ts.FunctionTypeNode);
-      case ts.SyntaxKind.TypeLiteral: return this.compileTypeLiteralNode(node as ts.TypeLiteralNode);
-      case ts.SyntaxKind.ArrayType: return this.compileArrayTypeNode(node as ts.ArrayTypeNode);
-      case ts.SyntaxKind.TupleType: return this.compileTupleTypeNode(node as ts.TupleTypeNode);
-      case ts.SyntaxKind.UnionType: return this.compileUnionTypeNode(node as ts.UnionTypeNode);
-      case ts.SyntaxKind.OptionalType: return this.compileOptionalType(node as ts.OptionalTypeNode);
-      case ts.SyntaxKind.LiteralType: return this.compileLiteralTypeNode(node as ts.LiteralTypeNode);
-      case ts.SyntaxKind.IntersectionType: return this.compileIntersectionTypeNode(node as ts.IntersectionTypeNode);
-      case ts.SyntaxKind.ParenthesizedType: return this.compileParenthesizedTypeNode(node as ts.ParenthesizedTypeNode);
-      case ts.SyntaxKind.ExpressionWithTypeArguments: return this.compileExpressionWithTypeArguments(node as ts.ExpressionWithTypeArguments);
-      case ts.SyntaxKind.TypeOperator: return this.compileTypeOperator(node as ts.TypeOperatorNode);
-      case ts.SyntaxKind.IndexedAccessType: return this.compileIndexedAccessType(node as ts.IndexedAccessTypeNode);
-
-      case ts.SyntaxKind.AnyKeyword: return { type: 'any' };
-      case ts.SyntaxKind.NullKeyword: return { type: 'null' };
-      case ts.SyntaxKind.NeverKeyword: return { type: 'never' };
-      case ts.SyntaxKind.SymbolKeyword: return { type: 'symbol' };
-      case ts.SyntaxKind.ObjectKeyword: return { type: 'object' };
-      case ts.SyntaxKind.BooleanKeyword: return { type: 'boolean' };
-      case ts.SyntaxKind.UndefinedKeyword: return { type: 'undefined' };
-      case ts.SyntaxKind.StringKeyword: return {
-        type: 'string',
-        ...this.getPropertyTags({ regex: 'value' })
+  private compileType(node: ts.TypeNode, ignoreRef?: string): SchemaType {
+    /*if (node.kind === ts.SyntaxKind.TypeReference && node.getText().includes('.') === false) {
+      console.log(node.getText(), (node as ts.TypeReferenceNode).typeName.getText());
+      return {
+        type: 'type-reference',
+        name: (node as ts.TypeReferenceNode).typeName.getText(),
       };
-      case ts.SyntaxKind.NumberKeyword: return {
-        type: 'number',
-        ...this.getPropertyTags({
-          integer: 'exists',
-          min: this.parseNumber,
-          max: this.parseNumber,
-        })
-      };
-    }
-    throw new Error(`compileType ${ts.SyntaxKind[node.kind]} not supported by ts-joi-schema-generator: ${node.getText()}`);
-  }
-
-  private compileIdentifier(node: ts.Identifier): SchemaType {
-    return { type: 'type-reference', name: this.getName(node) };
-  }
-
-  private compileTypeReferenceNode(node: ts.TypeReferenceNode): SchemaType {
-    if (!node.typeArguments) {
-      switch (node.typeName.getText()) {
-        case 'Date': return { type: 'date' };
-        case 'Buffer': return { type: 'buffer' };
-      }
-      return this.compileTypeName(node.typeName);
-    } else if (node.typeName.getText() === 'Array') {
-      return { type: 'array', of: this.compileType(node.typeArguments[0]) };
-    } else {
-      throw new Error(`Generics are not yet supported by ts-joi-schema-generator: ${node.getText()}`);
-    }
-  }
-
-  private compileTypeName(node: ts.EntityName): SchemaType {
-    switch (node.kind) {
-      case ts.SyntaxKind.Identifier: return { type: 'type-reference', name: node.getText() };
-      case ts.SyntaxKind.FirstNode: return { type: 'type-access', name: node.left.getText(), access: node.right.getText() };
-    }
-    throw new Error(`compileTypeName Unknown entityName ${ts.SyntaxKind[node!.kind]}`);
-  }
-
-  private compileFunctionTypeNode(_node: ts.FunctionTypeNode): SchemaType {
-    return { type: 'func' };
-  }
-
-  private compileTypeLiteralNode(node: ts.TypeLiteralNode): SchemaType {
-    return {
-      type: 'object',
-      members: this.compileTypeElements(node.members)
-    };
-  }
-
-  private compileArrayTypeNode(node: ts.ArrayTypeNode): SchemaType {
-    return {
-      type: 'array',
-      of: this.compileType(node.elementType)
-    };
-  }
-
-  private compileTupleTypeNode(node: ts.TupleTypeNode): SchemaType {
-    return {
-      type: 'tuple',
-      of: this.compileTypes(node.elementTypes)
-    };
-  }
-
-  private compileUnionTypeNode(node: ts.UnionTypeNode): SchemaType {
-    return {
-      type: 'union',
-      of: this.compileTypes(node.types)
-    };
-  }
-
-  private compileLiteralTypeNode(node: ts.LiteralTypeNode): SchemaType {
-    return {
-      type: 'literal',
-      rawLiteral: node.getText()
-    };
-  }
-
-  private compileParenthesizedTypeNode(node: ts.ParenthesizedTypeNode): SchemaType {
-    return this.compileType(node.type);
-  }
-
-  private compileIntersectionTypeNode(node: ts.IntersectionTypeNode): SchemaType {
-    return {
-      type: 'intersection',
-      of: this.compileTypes(node.types)
-    };
-  }
-
-  private compileOptionalType(node: ts.OptionalTypeNode): SchemaType {
-    const type = this.compileType(node.type);
-    type.required = false;
-    return type;
-  }
-
-  private compileExpressionWithTypeArguments(node: ts.ExpressionWithTypeArguments): SchemaType {
-    if (node.typeArguments) {
-      throw new Error('compileExpression Unable to compile type arguments');
-    }
-    return this.compileType(node.expression);
-  }
-
-  private compileTypeOperator(node: ts.TypeOperatorNode): SchemaType {
-    switch (node.operator) {
-      case ts.SyntaxKind.ReadonlyKeyword: return this.compileType(node.type);
-      case ts.SyntaxKind.KeyOfKeyword: {
-        const type = this.checker.getTypeFromTypeNode(node.type);
-        const properties = this.checker.getPropertiesOfType(type);
-        console.log('keyof', node.type.getText(), properties.map(s => s.getName()), type.getStringIndexType());
-      }
-    }
-    throw new Error(`compileTypeOperator Unsupported operator: ${ts.SyntaxKind[node.operator]}`);
-  }
-
-  private compileIndexedAccessType(node: ts.IndexedAccessTypeNode): SchemaType {
-    const type = this.checker.getTypeFromTypeNode(node);
-    return this.compileTsType(type);
+    }*/
+    return this.compileTsType(this.checker.getTypeFromTypeNode(node), ignoreRef);
   }
 
   private getFlagString(flags: ts.TypeFlags): string {
@@ -375,6 +248,39 @@ export class SchemaProgram {
       const flag = 1 << i;
       if (!!(flags & flag) && ts.TypeFlags[flag]) {
         flagStrings.push(ts.TypeFlags[flag]);
+      }
+    }
+    return flagStrings.join(', ');
+  }
+
+  private getSymbolFlagString(flags: ts.SymbolFlags): string {
+    const flagStrings: string[] = [];
+    for (let i = 0; i < 32; i++) {
+      const flag = 1 << i;
+      if (!!(flags & flag) && ts.SymbolFlags[flag]) {
+        flagStrings.push(ts.SymbolFlags[flag]);
+      }
+    }
+    return flagStrings.join(', ');
+  }
+
+  private getObjectFlagString(flags: ts.ObjectFlags): string {
+    const flagStrings: string[] = [];
+    for (let i = 0; i < 32; i++) {
+      const flag = 1 << i;
+      if (!!(flags & flag) && ts.ObjectFlags[flag]) {
+        flagStrings.push(ts.ObjectFlags[flag]);
+      }
+    }
+    return flagStrings.join(', ');
+  }
+
+  private getNodeFlagString(flags: ts.NodeFlags): string {
+    const flagStrings: string[] = [];
+    for (let i = 0; i < 32; i++) {
+      const flag = 1 << i;
+      if (!!(flags & flag) && ts.NodeFlags[flag]) {
+        flagStrings.push(ts.NodeFlags[flag]);
       }
     }
     return flagStrings.join(', ');
@@ -441,6 +347,10 @@ export class SchemaProgram {
     }
   }
 
+  private symbolHasFlag(symbol: ts.Symbol, flags: ts.SymbolFlags): boolean {
+    return !!(symbol.flags & flags);
+  }
+
   private hasFlag(type: ts.Type, flags: ts.TypeFlags): boolean {
     return !!(type.flags & flags);
   }
@@ -449,9 +359,30 @@ export class SchemaProgram {
     return this.hasFlag(type, flags);
   }
 
-  private compileTsType(type: ts.Type): SchemaType {
+  private hasObjectFlag(type: ts.ObjectType, flags: ts.ObjectFlags): boolean {
+    return !!(type.objectFlags & flags);
+  }
+
+  private hasObjectFlagGuard<T extends ts.ObjectType>(type: ts.ObjectType, flags: ts.ObjectFlags): type is T {
+    return this.hasObjectFlag(type, flags);
+  }
+
+  private compileSymbolType(symbol: ts.Symbol): SchemaType {
+    this.context.properties.push(symbol.valueDeclaration);
+
+    const type = this.compileTsType(this.checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration?.parent));
+
+    this.context.properties.pop();
+    return type;
+  }
+
+  private compileTsType(type: ts.Type, ignoreRef?: string): SchemaType {
     if (this.hasFlag(type, ts.TypeFlags.Null | ts.TypeFlags.Undefined)) {
-      return this.compileNonNullableType(type);
+      const schemaType = this.compileNonNullableType(type);
+      if (schemaType.required === undefined) {
+        schemaType.required = true;
+      }
+      return schemaType;
     }
 
     let nullable = false;
@@ -474,34 +405,45 @@ export class SchemaProgram {
     }
 
     const nonNullable = this.checker.getNonNullableType(type);
-    const schemaType = this.compileNonNullableType(nonNullable);
+    let schemaType = this.compileNonNullableType(nonNullable, ignoreRef);
+    if (schemaType.required === undefined) {
+      schemaType.required = !undefineable;
+    }
 
-    if (nullable || undefineable) {
-      return {
+    if (nullable ) {
+      schemaType = {
         type: 'union',
         of: [
           schemaType,
-          ...(nullable ? [{ type: 'null' as const }] : []),
-          ...(undefineable ? [{ type: 'undefined' as const }] : []),
-        ]
+          { type: 'null', required: true },
+        ],
+        required: true,
       };
     }
     return schemaType;
   }
 
-  private compileNonNullableType(type: ts.Type): SchemaType {
+  private compileNonNullableType(type: ts.Type, ignoreRef?: string): SchemaType {
+    if (type.aliasSymbol && type.aliasSymbol.name !== ignoreRef) {
+      return { type: 'type-reference', name: type.aliasSymbol.getName() };
+    }
+
     if (this.hasFlag(type, ts.TypeFlags.Any)) { return { type: 'any' }; }
     if (this.hasFlag(type, ts.TypeFlags.Unknown)) { return { type: 'unknown' }; }
-    if (this.hasFlag(type, ts.TypeFlags.String)) { return { type: 'string' }; }
-    if (this.hasFlag(type, ts.TypeFlags.Number)) { return { type: 'number' }; }
+    if (this.hasFlag(type, ts.TypeFlags.String)) { return { type: 'string', ...this.getPropertyTags({ regex: 'value' }) }; }
+    if (this.hasFlag(type, ts.TypeFlags.Number)) { return { type: 'number', ...this.getPropertyTags({ integer: 'exists', min: this.parseNumber, max: this.parseNumber }) }; }
     if (this.hasFlag(type, ts.TypeFlags.Boolean)) { return { type: 'boolean' }; }
     if (this.hasFlag(type, ts.TypeFlags.BigInt)) { return { type: 'bigint' }; }
     if (this.hasFlag(type, ts.TypeFlags.ESSymbol | ts.TypeFlags.UniqueESSymbol)) { return { type: 'symbol' }; }
-    if (this.hasFlag(type, ts.TypeFlags.Void)) { return { type: 'void' }; }
-    if (this.hasFlag(type, ts.TypeFlags.Undefined)) { return { type: 'undefined' }; }
+    if (this.hasFlag(type, ts.TypeFlags.Void)) { return { type: 'void', required: false }; }
+    if (this.hasFlag(type, ts.TypeFlags.Undefined)) { return { type: 'undefined', required: false }; }
     if (this.hasFlag(type, ts.TypeFlags.Null)) { return { type: 'null' }; }
-    if (this.hasFlag(type, ts.TypeFlags.Never)) { return { type: 'never' }; }
+    if (this.hasFlag(type, ts.TypeFlags.Never)) { return { type: 'never', required: false }; }
     if (this.hasFlag(type, ts.TypeFlags.String)) { return { type: 'string' }; }
+
+    if (type.getCallSignatures().length > 0) {
+      return {  type: 'func' };
+    }
 
     if (this.hasFlag(type, ts.TypeFlags.EnumLiteral)) {
       const typeString = this.checker.typeToString(type);
@@ -516,73 +458,111 @@ export class SchemaProgram {
         type: 'type-access',
         // typeString ends withs .{symbolName}, so strip that
         name: typeString.slice(0, -(symbolName.length + 1)),
-        access: type.symbol.valueDeclaration.getText()
+        access: symbolName
       };
     }
 
-    // boolean is a mess, publapily speaking. Can't get the value, so just convert to string.
+    // boolean is a mess, public api wise. Can't get the value, so just convert to string.
     if (this.hasFlag(type, ts.TypeFlags.BooleanLiteral)) {
       return {
-        type: 'new-literal',
-        value: Boolean(this.checker.typeToString(type))
+        type: 'literal',
+        value: this.checker.typeToString(type) === 'true'
       };
     }
 
     // the other literals are nicer
     if (this.hasFlagGuard<ts.LiteralType>(type, ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BigIntLiteral)) {
       return {
-        type: 'new-literal',
+        type: 'literal',
         value: type.value
       };
     }
 
     // unions and intersections are alright, luv ya
     if (this.hasFlagGuard<ts.UnionType>(type, ts.TypeFlags.Union)) {
-      return {
+      const union: SchemaType = {
         type: 'union',
-        of: type.types.map(this.compileTsType, this)
+        of: type.types.map((t) => this.compileTsType(t))
       };
+
+      const trueIndex = union.of.findIndex(t => t.type === 'literal' && t.value === true);
+      const falseIndex = union.of.findIndex(t => t.type === 'literal' && t.value === false);
+
+      if (trueIndex !== -1 && falseIndex !== -1) {
+        union.of[trueIndex] = {
+          type: 'boolean',
+          required: true,
+        };
+        union.of.splice(falseIndex, 1);
+      }
+
+      return union;
     }
     if (this.hasFlagGuard<ts.IntersectionType>(type, ts.TypeFlags.Intersection)) {
       return {
         type: 'intersection',
-        of: type.types.map(this.compileTsType, this)
+        of: type.types.map((t) => this.compileTsType(t))
       };
     }
 
+    // object is a fricking mess too :| Tuple is my enemy across all realms.
     if (this.hasFlagGuard<ts.ObjectType>(type, ts.TypeFlags.Object)) {
-      const symbolName = (type.symbol && type.symbol.getName()) || '__type';
-      if (symbolName && symbolName !== '__type') {
+      // symbol name *may* be '__type', so if it's not set, jsut default to that
+      const symbolName = type.symbol?.getName() ?? '__type';
+      if (symbolName !== '__type') {
         switch (symbolName) {
           // non-primitive versions of le primitives
-          case 'Number': return { type: 'number' };
-          case 'String': return { type: 'string' };
+          case 'Number': return { type: 'number', ...this.getPropertyTags({ integer: 'exists', min: this.parseNumber, max: this.parseNumber }) };
+          case 'String': return { type: 'string', ...this.getPropertyTags({ regex: 'value' }) };
           case 'Boolean': return { type: 'boolean' };
           case 'BigInt': return { type: 'bigint' };
           case 'Symbol': return { type: 'symbol' };
           case 'Object': return { type: 'object' };
 
-          // Specific to Joi
           case 'Date': return { type: 'date' };
           case 'Buffer': return { type: 'buffer' };
 
           case 'Array': return {
             type: 'array',
-            of: { type: 'any' }
+            // so very safe, we can assume this is a-okay, till it crashes and burns. Then we'll fix it.
+            of: this.compileTsType(this.checker.getTypeArguments(type as ts.TypeReference)[0])
           };
         }
         return { type: 'type-reference', name: symbolName };
       }
+
+      if (this.hasObjectFlagGuard<ts.TypeReference>(type, ts.ObjectFlags.Reference) && this.hasObjectFlag(type.target, ts.ObjectFlags.Tuple)) {
+        const target = type.target as ts.TupleType;
+        const types = type.typeArguments?.slice(0, target.hasRestElement ? -1 : undefined) ?? [];
+        const rest = target.hasRestElement ? type.typeArguments?.slice(-1)[0] : undefined;
+        const restElement = rest && this.compileTsType(rest);
+        return {
+          type: 'tuple',
+          minLength: target.minLength,
+          restElement,
+          of: types.map((t, i) => {
+            const type = this.compileTsType(t);
+            type.required = i < target.minLength;
+            return type;
+          }) ?? []
+        };
+      }
+
       return {
         type: 'object',
-        members: type.getProperties().map<IMemberDeclaration>(prop => ({
-          required: !(prop.valueDeclaration as ts.PropertyDeclaration).questionToken,
-          name: prop.getName(),
-          type: this.compileTsType(this.checker.getTypeOfSymbolAtLocation(prop, prop.valueDeclaration))
-        }))
+        members: type.getProperties().map<IMemberDeclaration>(prop => {
+          const t = this.compileSymbolType(prop);
+          if (t.required) {
+            t.required = !this.symbolHasFlag(prop, ts.SymbolFlags.Optional);
+          }
+          return {
+            name: prop.getName(),
+            type: t
+          };
+        })
       };
     }
-    throw new Error(`compileTsType: Unknown type ${ts.TypeFlags[type.flags] || type.flags}`);
+    throw new Error(`compileTsType: ${this.checker.typeToString(type)} ; Unknown type ${this.getFlagString(type.flags)}`);
   }
 
   private compileEnumDeclaration(node: ts.EnumDeclaration): void {
@@ -591,7 +571,7 @@ export class SchemaProgram {
         name: this.getName(node.name),
         members: node.members.map((member) => ({
           name: member.name.getText(),
-          value: this.getTextOfConstantValue(this.checker.getConstantValue(member))
+          value: JSON.stringify(this.checker.getConstantValue(member))
         }))
       }, !!this.getTag(node, 'schema'));
     }
@@ -629,14 +609,13 @@ export class SchemaProgram {
   private compileTypeAliasDeclaration(node: ts.TypeAliasDeclaration): void {
     if (!this.getTag(node, 'noschema')) {
       try {
-        this.schema.writeType({
-          name: this.getName(node.name),
-          type: this.compileType(node.type)
-        }, !!this.getTag(node, 'schema'));
+        const name = this.getName(node.name);
+        const type = this.compileType(node.type, name);
+        this.schema.writeType({ name, type, }, !!this.getTag(node, 'schema'));
       }
       catch (err) {
         //this.logType(this.checker.getTypeFromTypeNode(node.type), node)
-        const warning = `Unable to compile type alias '${this.getName(node.name)}': ${err}`;
+        const warning = `Unable to compile type alias '${this.getName(node.name)}': ${err} (${err.stack})`;
         if (this.getTag(node, 'schema')) {
           throw new Error(warning);
         }
@@ -726,7 +705,7 @@ export class SchemaProgram {
     const suffix = this.options.fileSuffix || Defaults.fileSuffix;
     if (!this.schemas.has(file) && (!suffix || !name.endsWith(suffix))) {
       const schema = this.createSchemaBuilder(file);
-      const context: ICompilerContext = { schema, mappedTypeContext: [] };
+      const context: ICompilerContext = { schema, mappedTypeContext: [], properties: [] };
       this.schemas.set(file, schema);
 
       this.contexts.push(context);
@@ -746,7 +725,7 @@ export class SchemaProgram {
   }
 
   private getPropertyTags<T extends ITagsOptions>(options: T): TagsResult<T> | undefined {
-    return this.context.currentProperty ? this.getTags(this.context.currentProperty, options) : undefined;
+    return this.property ? this.getTags(this.property, options) : undefined;
   }
 
   private getTag(node: ts.Node, tagName: string): ts.JSDocTag | undefined {
@@ -782,11 +761,5 @@ export class SchemaProgram {
       return undefined;
     }
     return num;
-  }
-
-  private getTextOfConstantValue(value: string | number | undefined): string {
-    // Typescript has methods to escape values, but doesn't seem to expose them at all. Here I am
-    // casting `ts` to access this private member rather than implementing my own.
-    return value === undefined ? 'undefined' : (ts as any).getTextOfConstantValue(value);
   }
 }

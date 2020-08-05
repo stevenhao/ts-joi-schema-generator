@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as Defaults from '../defaults';
 import { SchemaProgram, ICompilerOptions } from '../SchemaProgram';
-import { BaseSchemaBuilder, SchemaType, IImportDeclaration, IExportDeclaration, IEnumDeclaration, IInterfaceDeclaration, ITypeDeclaration, IMemberDeclaration, Indexer, IBaseSchemaType, ILiteralSchemaType, INewLiteralSchemaType, ITypeReferenceSchemaType, ITypeAccessSchemaType, IStringSchemaType, IObjectSchemaType, IArraySchemaType, IUnionSchemaType, ITupleSchemaType, INumberSchemaType, IIntersectionSchemaType } from './BaseSchemaBuilder';
+import { BaseSchemaBuilder, SchemaType, IImportDeclaration, IExportDeclaration, IEnumDeclaration, IInterfaceDeclaration, ITypeDeclaration, IMemberDeclaration, Indexer, IBaseSchemaType, ILiteralSchemaType, ITypeReferenceSchemaType, ITypeAccessSchemaType, IStringSchemaType, IObjectSchemaType, IArraySchemaType, IUnionSchemaType, ITupleSchemaType, INumberSchemaType, IIntersectionSchemaType } from './BaseSchemaBuilder';
 
 interface IRenderContext {
   addTempType(type: SchemaType | string): string
@@ -67,10 +67,10 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
     const r: string[] = [
       `export const ${name} = (() => {`,
       `  const members = {`,
-      ...declaration.members.map((member) => `    ${member.name}: Joi.valid(${member.value}),`),
+      ...declaration.members.map((member) => `    ${member.name}: Joi.valid(${member.value}).required(),`),
       `  };`,
       `  return {`,
-      `    ...Joi.valid(${declaration.members.map((member) => member.value).join(', ')}),`,
+      `    ...Joi.valid(${declaration.members.map((member) => member.value).join(', ')}).required(),`,
       `    members,`,
       `  };`,
       `})();\n\n`,
@@ -96,7 +96,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   private renderInterface(declaration: IInterfaceDeclaration): string {
     const heritage = declaration.heritages.map((heritage) => heritage.type === 'type-reference' ? `.concat(${this.toSchemaName(heritage.name)})` : '');
     const members = this.indent(() => this.renderMembers(declaration.members));
-    return `export const ${this.toSchemaName(declaration.name)} = Joi.object()${heritage}${members}.strict();\n\n`;
+    return `export const ${this.toSchemaName(declaration.name)} = Joi.object()${heritage}${members}.required().strict();\n\n`;
   }
 
   private renderTypes(): string {
@@ -111,6 +111,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   private renderSchemaType(type: SchemaType): string {
     let tempCount = 0;
     let tsignore = false;
+
     const temps: Array<{ name: string, type: string }> = [];
     this.contexts.push({
       addTempType: (type) => {
@@ -135,7 +136,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
       return `(() => {${tempsRender}\n${indent}${tsignore ? '// @ts-ignore' : ''}\n${indent}return Joi.${rule}\n${this.indent(-1)}})()`;
     }
 
-    return `Joi.${rule}`;
+    return `Joi.${rule}${type.required ? '.required()' : ''}`;
   }
 
 
@@ -153,7 +154,6 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
       case 'void':
       case 'undefined': return this.renderUndefined(type);
       case 'literal': return this.renderLiteral(type);
-      case 'new-literal': return this.renderNewLiteral(type);
       case 'type-reference': return this.renderTypeReference(type);
       case 'type-access': return this.renderTypeAccess(type);
       case 'string': return this.renderString(type);
@@ -199,15 +199,11 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
     return 'boolean()';
   }
 
-  private renderUndefined(_type: IBaseSchemaType<'undefined' | 'void'>): string {
-    return 'valid(undefined)';
+  private renderUndefined(_type: IBaseSchemaType<'undefined' | 'void'>): string  {
+    return 'valid([]).optional()';
   }
 
   private renderLiteral(type: ILiteralSchemaType): string {
-    return `valid(${type.rawLiteral})`;
-  }
-
-  private renderNewLiteral(type: INewLiteralSchemaType): string {
     if (typeof type.value === 'object') { throw new Error('BigInt not supported'); } else return `valid(${JSON.stringify(type.value)})`;
   }
 
@@ -228,15 +224,26 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderArray(type: IArraySchemaType): string {
-    return `array().items(${this.renderSchemaType(type.of)})`;
+    return `array().items(${this.renderSchemaType(type.of)}).sparse()`;
   }
 
   private renderUnion(type: IUnionSchemaType): string {
-    return `alternatives(\n${type.of.map((t) => this.indent() + this.indent(() => this.renderSchemaType(t))).join(',\n')}\n${this.indent(-1)})`;
+    return `alternatives(\n${type.of.map((t) => this.renderTypeListItem(t)).join('')}${this.indent(-1)})`;
   }
 
   private renderTuple(type: ITupleSchemaType): string {
-    return `array().ordered(\n${type.of.map((t) => this.indent() + this.indent(() => this.renderSchemaType(t))).join(',\n')}\n${this.indent(-1)})`;
+    let rule = `array().ordered(\n${type.of.map((t) => this.renderTypeListItem(t)).join('')}${this.indent(-1)})`;
+    const rest = type.restElement;
+    if (rest) {
+      rule = `${rule}.items(${this.indent(() => this.renderSchemaType(rest))})`;
+    }
+    return `${rule}.sparse()`;
+  }
+
+  private renderTypeListItem(type: SchemaType): string {
+    const indent = this.indent();
+    const schemaType = this.indent(() => this.renderSchemaType(type));
+    return `${indent}${schemaType},\n`;
   }
 
   private renderNumber(type: INumberSchemaType): string {
@@ -302,8 +309,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
       return '';
     }
     const type = this.indent(() => this.renderSchemaType(member.type));
-    const required = member.required ? '.required()' : '';
-    return `${indent}${member.name}: ${type}${required},\n`;
+    return `${indent}${member.name}: ${type},\n`;
   }
 
   private renderIndexer(member: IMemberDeclaration | undefined): string {
