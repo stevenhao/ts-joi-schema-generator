@@ -103,16 +103,17 @@ export const ISamplingSchema = Joi.object().concat(ICacheItemSchema).keys({
   xNumberAlias2: Joi.number().required(),
   xnull: Joi.valid(null).required(),
   xMyType: Joi.lazy(() => MyTypeSchema).required(),
-  xarray: Joi.array().items(Joi.string().required()).sparse().required(),
-  xarray2: Joi.array().items(Joi.lazy(() => MyTypeSchema).required()).sparse().required(),
+  xarray: Joi.array().items(Joi.string()).required(),
+  xarray2: Joi.array().items(Joi.lazy(() => MyTypeSchema)).required(),
+  xarray3: Joi.array().items(Joi.number()).sparse().required(),
   xtuple: Joi.array().ordered(
     Joi.string().required(),
     Joi.number().required(),
-  ).sparse().required(),
+  ).required(),
   xtuple2: Joi.array().ordered(
     Joi.string().required(),
     Joi.number(),
-  ).items(Joi.valid(1).required()).sparse().required(),
+  ).items(Joi.valid(1)).required(),
   xunion: Joi.alternatives(
     Joi.number().required(),
     Joi.valid(null).required(),

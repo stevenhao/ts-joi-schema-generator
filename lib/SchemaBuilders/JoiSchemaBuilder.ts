@@ -108,7 +108,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
     return `export const ${this.toSchemaName(declaration.name)} = ${this.indent(() => this.renderSchemaType(declaration.type))}.strict();\n\n`;
   }
 
-  private renderSchemaType(type: SchemaType): string {
+  private renderSchemaType(type: SchemaType, requiredOverride?: boolean): string {
     let tempCount = 0;
     let tsignore = false;
 
@@ -136,7 +136,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
       return `(() => {${tempsRender}\n${indent}${tsignore ? '// @ts-ignore' : ''}\n${indent}return Joi.${rule}\n${this.indent(-1)}})()`;
     }
 
-    return `Joi.${rule}${type.required ? '.required()' : ''}`;
+    return `Joi.${rule}${(requiredOverride ?? type.required) ? '.required()' : ''}`;
   }
 
 
@@ -224,7 +224,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderArray(type: IArraySchemaType): string {
-    return `array().items(${this.renderSchemaType(type.of)}).sparse()`;
+    return `array().items(${this.renderSchemaType(type.of, false)})${type.of.required ? '' : '.sparse()'}`;
   }
 
   private renderUnion(type: IUnionSchemaType): string {
@@ -232,12 +232,13 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderTuple(type: ITupleSchemaType): string {
+    // Note: Tuples do NOT support undefined/empty fillers! This is due to Joi being weird.
     let rule = `array().ordered(\n${type.of.map((t) => this.renderTypeListItem(t)).join('')}${this.indent(-1)})`;
     const rest = type.restElement;
     if (rest) {
-      rule = `${rule}.items(${this.indent(() => this.renderSchemaType(rest))})`;
+      rule = `${rule}.items(${this.renderSchemaType(rest, false)})`;
     }
-    return `${rule}.sparse()`;
+    return `${rule}`;
   }
 
   private renderTypeListItem(type: SchemaType): string {
