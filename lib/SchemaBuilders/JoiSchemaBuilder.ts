@@ -254,7 +254,9 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
     throw new Error('BigInt not supported');
   }
 
-  private renderIntersection(type: IIntersectionSchemaType): string {
+  private renderIntersection(_type: IIntersectionSchemaType): string {
+    throw new Error('Intersection not supported for @hapi/joi@1.15');
+    /*
     const of = type.of;
     const objects = of.filter((type) => type.type === 'object');
     const unions = of.filter((type) => type.type === 'union');
@@ -280,6 +282,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
 
     this.context.tsignore();
     return `custom((value, helpers) => {${declarations}${checks}\n${indent}return value;\n${this.indent()}})`;
+    */
   }
 
   private getAccessName(type: string | null, access: string): string {
