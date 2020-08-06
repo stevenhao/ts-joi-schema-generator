@@ -91,9 +91,12 @@ export const ILRUCacheSchema = Joi.object().keys({
 }).required().strict();
 
 export const ISamplingSchema = Joi.object().concat(ICacheItemSchema).keys({
+  '@name': Joi.object().keys({
+    '@innerName': Joi.any().required(),
+  }).required(),
   xboolean: Joi.boolean().required(),
   xstring: Joi.string().required(),
-  xstring2: Joi.string().required(),
+  'xstring2': Joi.string().required(),
   xregex: Joi.string().regex(/a/).required(),
   xregex2: Joi.string().regex(/a/, "match a").required(),
   xany: Joi.any().required(),

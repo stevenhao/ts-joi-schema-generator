@@ -319,7 +319,7 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
       return '';
     }
     const type = this.indent(() => this.renderSchemaType(member.type));
-    return `${indent}${member.name}: ${type},\n`;
+    return `${indent}${member.text}: ${type},\n`;
   }
 
   private renderIndexer(member: IMemberDeclaration | undefined): string {

@@ -61,6 +61,9 @@ export enum AnimalFlags {
 // random comment.
 /** @schema */
 export interface ISampling extends ICacheItem {
+  '@name': {
+    '@innerName': any
+  }
   xboolean: boolean
   xstring: string
   'xstring2': string

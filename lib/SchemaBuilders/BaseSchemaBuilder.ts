@@ -40,6 +40,7 @@ export interface IEnumMember {
 
 export interface IMemberDeclaration {
   name: string
+  text: string
   indexer?: Indexer
   type: SchemaType
 }

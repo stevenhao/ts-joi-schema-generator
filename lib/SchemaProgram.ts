@@ -195,7 +195,7 @@ export class SchemaProgram {
     }
 
     this.context.properties.pop();
-    return { name, type };
+    return { name, text: node.name.getText(), type };
   }
 
   private compileIndexSignatureDeclaration(node: ts.IndexSignatureDeclaration): IMemberDeclaration {
@@ -212,6 +212,7 @@ export class SchemaProgram {
     return {
       type,
       name: 'indexer',
+      text: 'indexer',
       indexer: (
         indexerType.type === 'string'
           ? { type: 'string', pattern: pattern && pattern.comment ? pattern.comment.trim() : undefined }
@@ -224,6 +225,7 @@ export class SchemaProgram {
     return {
       type: { type: 'func', required: !node.questionToken },
       name: this.getName(node.name),
+      text: node.name.getText(),
     };
   }
 
@@ -558,6 +560,7 @@ export class SchemaProgram {
           }
           return {
             name: prop.getName(),
+            text: ts.getNameOfDeclaration(prop.valueDeclaration)?.getText() ?? prop.getName(),
             type: t
           };
         })
