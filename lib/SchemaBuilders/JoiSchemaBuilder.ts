@@ -216,7 +216,8 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderString(type: IStringSchemaType): string {
-    return `string()${type.regex ? `.regex(${type.regex})` : ''}`;
+    const { regex, name } = type.regex ?? {};
+    return `string()${regex ? `.regex(${regex}${name ? `, ${JSON.stringify(name)}` : ''})` : ''}`;
   }
 
   private renderObject(type: IObjectSchemaType): string {

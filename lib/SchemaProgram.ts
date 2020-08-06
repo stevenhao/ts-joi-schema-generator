@@ -430,7 +430,7 @@ export class SchemaProgram {
 
     if (this.hasFlag(type, ts.TypeFlags.Any)) { return { type: 'any' }; }
     if (this.hasFlag(type, ts.TypeFlags.Unknown)) { return { type: 'unknown' }; }
-    if (this.hasFlag(type, ts.TypeFlags.String)) { return { type: 'string', ...this.getPropertyTags({ regex: 'value' }) }; }
+    if (this.hasFlag(type, ts.TypeFlags.String)) { return { type: 'string', ...this.getPropertyTags({ regex: this.parseRegex }) }; }
     if (this.hasFlag(type, ts.TypeFlags.Number)) { return { type: 'number', ...this.getPropertyTags({ integer: 'exists', min: this.parseNumber, max: this.parseNumber }) }; }
     if (this.hasFlag(type, ts.TypeFlags.Boolean)) { return { type: 'boolean' }; }
     if (this.hasFlag(type, ts.TypeFlags.BigInt)) { return { type: 'bigint' }; }
@@ -513,7 +513,7 @@ export class SchemaProgram {
         switch (symbolName) {
           // non-primitive versions of le primitives
           case 'Number': return { type: 'number', ...this.getPropertyTags({ integer: 'exists', min: this.parseNumber, max: this.parseNumber }) };
-          case 'String': return { type: 'string', ...this.getPropertyTags({ regex: 'value' }) };
+          case 'String': return { type: 'string', ...this.getPropertyTags({ regex: this.parseRegex }) };
           case 'Boolean': return { type: 'boolean' };
           case 'BigInt': return { type: 'bigint' };
           case 'Symbol': return { type: 'symbol' };
@@ -762,5 +762,13 @@ export class SchemaProgram {
       return undefined;
     }
     return num;
+  }
+
+  private parseRegex = (value: string): { regex: string, name?: string } | undefined => {
+    const slashIndex = value.indexOf('/');
+    return slashIndex === -1 ? undefined : {
+      regex: value.slice(slashIndex).trimRight(),
+      name: slashIndex > 0 ? value.slice(0, slashIndex - 1).trim() || undefined : undefined,
+    };
   }
 }

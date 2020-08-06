@@ -94,6 +94,8 @@ export const ISamplingSchema = Joi.object().concat(ICacheItemSchema).keys({
   xboolean: Joi.boolean().required(),
   xstring: Joi.string().required(),
   xstring2: Joi.string().required(),
+  xregex: Joi.string().regex(/a/).required(),
+  xregex2: Joi.string().regex(/a/, "match a").required(),
   xany: Joi.any().required(),
   xnumber: Joi.number().required(),
   xnumber2: Joi.number(),

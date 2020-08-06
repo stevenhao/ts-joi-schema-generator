@@ -64,6 +64,10 @@ export interface ISampling extends ICacheItem {
   xboolean: boolean
   xstring: string
   'xstring2': string
+  /** @regex /a/ */
+  xregex: string
+  /** @regex match a /a/ */
+  xregex2: string
   xany: any
   xnumber: number
   xnumber2?: number

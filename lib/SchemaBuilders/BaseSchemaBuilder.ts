@@ -57,7 +57,10 @@ export interface IBaseSchemaType<T extends string> {
 }
 
 export interface IStringSchemaType extends IBaseSchemaType<'string'> {
-  regex?: string
+  regex?: {
+    regex: string
+    name?: string
+  }
 }
 
 export interface INumberSchemaType extends IBaseSchemaType<'number'> {
