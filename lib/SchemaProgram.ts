@@ -525,7 +525,8 @@ export class SchemaProgram {
           case 'Array': return {
             type: 'array',
             // so very safe, we can assume this is a-okay, till it crashes and burns. Then we'll fix it.
-            of: this.compileTsType(this.checker.getTypeArguments(type as ts.TypeReference)[0])
+            of: this.compileTsType(this.checker.getTypeArguments(type as ts.TypeReference)[0]),
+            ...this.getPropertyTags({ minLength: this.parseNumber, maxLength: this.parseNumber })
           };
         }
         return { type: 'type-reference', name: symbolName };

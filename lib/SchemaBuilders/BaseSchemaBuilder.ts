@@ -81,6 +81,8 @@ export interface ITypeAccessSchemaType extends IBaseSchemaType<'type-access'> {
 
 export interface IArraySchemaType extends IBaseSchemaType<'array'> {
   of: SchemaType
+  minLength?: number
+  maxLength?: number
 }
 
 export interface ITupleSchemaType extends IBaseSchemaType<'tuple'> {

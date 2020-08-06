@@ -106,6 +106,7 @@ export const ISamplingSchema = Joi.object().concat(ICacheItemSchema).keys({
   xarray: Joi.array().items(Joi.string()).required(),
   xarray2: Joi.array().items(Joi.lazy(() => MyTypeSchema)).required(),
   xarray3: Joi.array().items(Joi.number()).sparse().required(),
+  xarray4: Joi.array().items(Joi.string()).min(2).max(4).required(),
   xtuple: Joi.array().ordered(
     Joi.string().required(),
     Joi.number().required(),

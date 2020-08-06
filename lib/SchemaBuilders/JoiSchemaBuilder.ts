@@ -224,7 +224,12 @@ export class JoiSchemaBuilder extends BaseSchemaBuilder {
   }
 
   private renderArray(type: IArraySchemaType): string {
-    return `array().items(${this.renderSchemaType(type.of, false)})${type.of.required ? '' : '.sparse()'}`;
+    return [
+      `array().items(${this.renderSchemaType(type.of, false)})`,
+      type.minLength === undefined ? '' : `.min(${type.minLength})`,
+      type.maxLength === undefined ? '' : `.max(${type.maxLength})`,
+      type.of.required ? '' : '.sparse()',
+    ].join('');
   }
 
   private renderUnion(type: IUnionSchemaType): string {

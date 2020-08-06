@@ -83,6 +83,11 @@ export interface ISampling extends ICacheItem {
   xarray: string[]
   xarray2: MyType[]
   xarray3: (number|undefined)[]
+  /**
+   * @minLength 2
+   * @maxLength 4
+   **/
+  xarray4: string[]
   xtuple: [string, number]
   xtuple2: [string, number?, ...1[]]
   xunion: number | null
