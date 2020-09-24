@@ -50,4 +50,8 @@ describe('ts-interface-builder', () => {
       'imports-child-d-schema.ts'
     ]);
   });
+
+  it('should compile types indirectly referenced', async () => {
+    await expectSchema('indirect-references.ts', ['indirect-references-schema.ts']);
+  })
 });

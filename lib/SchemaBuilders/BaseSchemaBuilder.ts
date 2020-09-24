@@ -181,16 +181,16 @@ export abstract class BaseSchemaBuilder {
   public writeInterface(declaration: IInterfaceDeclaration, shouldRender: boolean): void {
     this.schema.interfaces.push(declaration);
 
-    if (shouldRender) {
-      this.useInterface(declaration);
+    if (shouldRender || this.referencedNames.has(declaration.name)) {
+      this.useInterface(declaration, true);
     }
   }
 
   public writeType(declaration: ITypeDeclaration, shouldRender: boolean): void {
     this.schema.types.push(declaration);
 
-    if (shouldRender) {
-      this.useType(declaration);
+    if (shouldRender || this.referencedNames.has(declaration.name)) {
+      this.useType(declaration, true);
     }
   }
 
@@ -227,13 +227,13 @@ export abstract class BaseSchemaBuilder {
   public use(name: string): void {
     const iface = this.schema.interfaces.find((declaration) => declaration.name === name);
     if (iface) {
-      this.useInterface(iface);
+      this.useInterface(iface, false);
       return;
     }
 
     const type = this.schema.types.find((declaration) => declaration.name === name);
     if (type) {
-      this.useType(type);
+      this.useType(type, false);
       return;
     }
 
@@ -286,8 +286,8 @@ export abstract class BaseSchemaBuilder {
     this.finalized = true;
   }
 
-  private useInterface(declaration: IInterfaceDeclaration): void {
-    if (!this.referencedNames.has(declaration.name)) {
+  private useInterface(declaration: IInterfaceDeclaration, late: boolean): void {
+    if (late || !this.referencedNames.has(declaration.name)) {
       this.referencedNames.add(declaration.name);
       for (const heritage of declaration.heritages) {
         this.reference(heritage);
@@ -298,8 +298,8 @@ export abstract class BaseSchemaBuilder {
     }
   }
 
-  private useType(declaration: ITypeDeclaration): void {
-    if (!this.referencedNames.has(declaration.name)) {
+  private useType(declaration: ITypeDeclaration, late: boolean): void {
+    if (late || !this.referencedNames.has(declaration.name)) {
       this.referencedNames.add(declaration.name);
       this.reference(declaration.type);
     }
