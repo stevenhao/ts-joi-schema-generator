@@ -1,115 +1,138 @@
-import * as path from 'path';
-import * as Defaults from './defaults';
-import { SchemaProgram, ICompilerOptions } from './SchemaProgram';
+import * as path from "path";
+import * as Defaults from "./defaults";
+import { SchemaProgram, ICompilerOptions } from "./SchemaProgram";
 
 export interface IContextTags {
-  integer?: boolean
-  min?: string
-  max?: string
-  regex?: string
+  integer?: boolean;
+  min?: string;
+  max?: string;
+  regex?: string;
 }
 
 export interface INamedBinding {
-  bound?: string
-  name: string
+  bound?: string;
+  name: string;
 }
 
 export interface IExportDeclaration {
-  file?: string
-  namedBindings: INamedBinding[]
+  file?: string;
+  namedBindings: INamedBinding[];
 }
 
 export interface IImportDeclaration {
-  file: string
-  namedBindings: INamedBinding[]
+  file: string;
+  namedBindings: INamedBinding[];
 }
 
 export interface IInterfaceDeclaration {
-  name: string
-  heritages: SchemaType[]
-  members: IMemberDeclaration[]
+  name: string;
+  heritages: SchemaType[];
+  members: IMemberDeclaration[];
 }
 
 export interface ITypeDeclaration {
-  name: string
-  type: SchemaType
+  name: string;
+  type: SchemaType;
 }
 
 export interface IEnumDeclaration {
-  name: string
-  members: IEnumMember[]
+  name: string;
+  members: IEnumMember[];
 }
 
 export interface IEnumMember {
-  name: string
-  value: string
+  name: string;
+  value: string;
 }
 
 export interface IMemberDeclaration {
-  name: string
-  indexer?: Indexer
-  type: SchemaType
-  required: boolean
+  name: string;
+  indexer?: Indexer;
+  type: SchemaType;
+  required: boolean;
 }
 
-export type Indexer = {
-  type: 'number'
-} | {
-  type: 'string'
-  regex?: string
-}
+export type Indexer =
+  | {
+      type: "number";
+    }
+  | {
+      type: "string";
+      regex?: string;
+    };
 
-export type SchemaType = ({
-  type: 'any' | 'boolean' | 'symbol' | 'undefined' | 'null' | 'never' | 'func' | 'date' | 'buffer'
-} | {
-  type: 'string'
-  regex?: string
-} | {
-  type: 'number'
-  integer?: boolean
-  min?: string
-  max?: string
-} | {
-  type: 'object'
-  members?: IMemberDeclaration[]
-} | {
-  type: 'type-reference'
-  name: string
-} | {
-  type: 'type-access'
-  name: string
-  access: string
-} | {
-  type: 'array'
-  of: SchemaType
-} | {
-  type: 'tuple'
-  of: SchemaType[]
-} | {
-  type: 'union'
-  of: SchemaType[]
-} | {
-  type: 'intersection'
-  of: SchemaType[]
-} | {
-  type: 'literal'
-  rawLiteral: string
-}) & {
-  required?: boolean
+export type SchemaType = (
+  | {
+      type:
+        | "any"
+        | "boolean"
+        | "symbol"
+        | "undefined"
+        | "null"
+        | "never"
+        | "func"
+        | "date"
+        | "buffer";
+    }
+  | {
+      type: "string";
+      regex?: string;
+    }
+  | {
+      type: "number";
+      integer?: boolean;
+      min?: string;
+      max?: string;
+    }
+  | {
+      type: "object";
+      members?: IMemberDeclaration[];
+    }
+  | {
+      type: "type-reference";
+      name: string;
+    }
+  | {
+      type: "type-access";
+      name: string;
+      access: string;
+    }
+  | {
+      type: "array";
+      of: SchemaType;
+    }
+  | {
+      type: "tuple";
+      of: SchemaType[];
+    }
+  | {
+      type: "union";
+      of: SchemaType[];
+    }
+  | {
+      type: "intersection";
+      of: SchemaType[];
+    }
+  | {
+      type: "literal";
+      rawLiteral: string;
+    }
+) & {
+  required?: boolean;
 };
 
 export interface ISchema {
-  file: string
-  exports: IExportDeclaration[]
-  imports: IImportDeclaration[]
-  interfaces: IInterfaceDeclaration[]
-  types: ITypeDeclaration[]
-  enums: IEnumDeclaration[]
+  file: string;
+  exports: IExportDeclaration[];
+  imports: IImportDeclaration[];
+  interfaces: IInterfaceDeclaration[];
+  types: ITypeDeclaration[];
+  enums: IEnumDeclaration[];
 }
 
 export interface IJoiRenderContext {
-  addTempType(type: SchemaType | string): string
-  tsignore(): void
+  addTempType(type: SchemaType | string): string;
+  tsignore(): void;
 }
 
 export class SchemaBuilder {
@@ -130,12 +153,14 @@ export class SchemaBuilder {
       types: [],
       exports: [],
       imports: [],
-      interfaces: []
+      interfaces: [],
     };
   }
 
   public render(): string | null {
-    const result = `${this.renderImports()}${this.renderExports()}\n${this.renderEnums()}${this.renderInterfaces()}${this.renderTypes()}`.trim();
+    console.log("render", this.schema.exports, this.schema.interfaces);
+    const result =
+      `${this.renderImports()}${this.renderExports()}\n${this.renderEnums()}${this.renderInterfaces()}${this.renderTypes()}`.trim();
     if (result) {
       return `import * as Joi from '@hapi/joi';\n\n${result}`;
     }
@@ -150,7 +175,10 @@ export class SchemaBuilder {
     this.schema.exports.push(declaration);
   }
 
-  public writeInterface(declaration: IInterfaceDeclaration, shouldRender: boolean) {
+  public writeInterface(
+    declaration: IInterfaceDeclaration,
+    shouldRender: boolean
+  ) {
     this.schema.interfaces.push(declaration);
 
     if (shouldRender) {
@@ -179,7 +207,9 @@ export class SchemaBuilder {
       .map((declaration) => {
         return {
           file: declaration.file,
-          namedBindings: declaration.namedBindings.filter((binding) => this.referencedNames.has(binding.name))
+          namedBindings: declaration.namedBindings.filter((binding) =>
+            this.referencedNames.has(binding.name)
+          ),
         };
       })
       .filter((declaration) => declaration.namedBindings.length > 0);
@@ -190,26 +220,34 @@ export class SchemaBuilder {
       .map((declaration) => {
         return {
           file: declaration.file,
-          namedBindings: declaration.namedBindings.filter((binding) => this.referencedNames.has(binding.name))
+          namedBindings: declaration.namedBindings.filter((binding) =>
+            this.referencedNames.has(binding.name)
+          ),
         };
       })
       .filter((declaration) => declaration.namedBindings.length > 0);
   }
 
   public use(name: string) {
-    const iface = this.schema.interfaces.find((declaration) => declaration.name === name);
+    const iface = this.schema.interfaces.find(
+      (declaration) => declaration.name === name
+    );
     if (iface) {
       this.useInterface(iface);
       return;
     }
 
-    const type = this.schema.types.find((declaration) => declaration.name === name);
+    const type = this.schema.types.find(
+      (declaration) => declaration.name === name
+    );
     if (type) {
       this.useType(type);
       return;
     }
 
-    const enumeration = this.schema.enums.find((declaration) => declaration.name === name);
+    const enumeration = this.schema.enums.find(
+      (declaration) => declaration.name === name
+    );
     if (enumeration) {
       this.useEnum(enumeration);
       return;
@@ -218,8 +256,14 @@ export class SchemaBuilder {
     if (this.finalized) {
       for (const declaration of this.schema.imports) {
         for (const binding of declaration.namedBindings) {
-          if (name === binding.name && !this.referencedNames.has(binding.name)) {
-            this.program.use(this.resolveSourceFile(declaration.file), binding.bound || binding.name);
+          if (
+            name === binding.name &&
+            !this.referencedNames.has(binding.name)
+          ) {
+            this.program.use(
+              this.resolveSourceFile(declaration.file),
+              binding.bound || binding.name
+            );
           }
         }
       }
@@ -227,8 +271,14 @@ export class SchemaBuilder {
       for (const declaration of this.schema.exports) {
         if (declaration.file) {
           for (const binding of declaration.namedBindings) {
-            if (name === binding.name && !this.referencedNames.has(binding.name)) {
-              this.program.use(this.resolveSourceFile(declaration.file), binding.bound || binding.name);
+            if (
+              name === binding.name &&
+              !this.referencedNames.has(binding.name)
+            ) {
+              this.program.use(
+                this.resolveSourceFile(declaration.file),
+                binding.bound || binding.name
+              );
             }
           }
         }
@@ -242,7 +292,10 @@ export class SchemaBuilder {
     const imports = this.getUsedImports();
     for (const declaration of imports) {
       for (const binding of declaration.namedBindings) {
-        this.program.use(this.resolveSourceFile(declaration.file), binding.bound || binding.name);
+        this.program.use(
+          this.resolveSourceFile(declaration.file),
+          binding.bound || binding.name
+        );
       }
     }
 
@@ -250,7 +303,10 @@ export class SchemaBuilder {
     for (const declaration of exports) {
       if (declaration.file) {
         for (const binding of declaration.namedBindings) {
-          this.program.use(this.resolveSourceFile(declaration.file), binding.bound || binding.name);
+          this.program.use(
+            this.resolveSourceFile(declaration.file),
+            binding.bound || binding.name
+          );
         }
       }
     }
@@ -285,159 +341,255 @@ export class SchemaBuilder {
 
   private reference(type: SchemaType) {
     switch (type.type) {
-      case 'array': this.reference(type.of); break;
+      case "array":
+        this.reference(type.of);
+        break;
 
-      case 'type-access':
-      case 'type-reference': {
-        if (!this.referencedNames.has(type.name)) {
-          this.use(type.name);
-          this.referencedNames.add(type.name);
+      case "type-access":
+      case "type-reference":
+        {
+          if (!this.referencedNames.has(type.name)) {
+            this.use(type.name);
+            this.referencedNames.add(type.name);
+          }
         }
-      } break;
+        break;
 
-      case 'object': {
-        for (const member of type.members || []) {
-          this.reference(member.type);
+      case "object":
+        {
+          for (const member of type.members || []) {
+            this.reference(member.type);
+          }
         }
-      } break;
+        break;
 
-      case 'tuple':
-      case 'union':
-      case 'intersection': {
-        for (const subType of type.of) {
-          this.reference(subType);
+      case "tuple":
+      case "union":
+      case "intersection":
+        {
+          for (const subType of type.of) {
+            this.reference(subType);
+          }
         }
-      } break;
+        break;
     }
   }
 
   private renderImports() {
     const imports = this.getUsedImports();
-    return imports.map((declaration) => this.renderImportExport('import', declaration)).join('');
+    return imports
+      .map((declaration) => this.renderImportExport("import", declaration))
+      .join("");
   }
 
   private renderExports() {
     const exports = this.getUsedExports();
-    return exports.map((declaration) => this.renderImportExport('export', declaration)).join('');
+    return exports
+      .map((declaration) => this.renderImportExport("export", declaration))
+      .join("");
   }
 
-  private renderImportExport(type: 'export' | 'import', declaration: IImportDeclaration | IExportDeclaration) {
-    const namedBindings = declaration.namedBindings.map(binding => {
+  private renderImportExport(
+    type: "export" | "import",
+    declaration: IImportDeclaration | IExportDeclaration
+  ) {
+    const namedBindings = declaration.namedBindings.map((binding) => {
       if (binding.bound) {
-        return `${this.toSchemaName(binding.bound)} as ${this.toSchemaName(binding.name)}`;
+        return `${this.toSchemaName(binding.bound)} as ${this.toSchemaName(
+          binding.name
+        )}`;
       }
       return this.toSchemaName(binding.name);
     });
 
-    let from = '';
+    let from = "";
     if (declaration.file) {
-      const filePath = declaration.file
+      const filePath = declaration.file;
       const { dir, name } = path.parse(filePath);
-      const outPath = path.format({ dir: this.options.outDir || dir, name: `${name}${this.options.fileSuffix || Defaults.fileSuffix}` });
-      from = ` from './${path.relative(this.options.outDir || './', outPath)}'`;
+      const outPath = path.format({
+        dir: this.options.outDir || dir,
+        name: `${name}${this.options.fileSuffix || Defaults.fileSuffix}`,
+      });
+      from = ` from './${path.relative(this.options.outDir || "./", outPath)}'`;
     }
 
-    return `${type} { ${namedBindings.join(', ')} }${from};\n`;
+    return `${type} { ${namedBindings.join(", ")} }${from};\n`;
   }
 
   private renderEnums() {
-    const enums = this.schema.enums.filter((declaration) => this.referencedNames.has(declaration.name));
-    return enums.map((declaration) => this.renderEnum(declaration)).join('');
+    const enums = this.schema.enums.filter((declaration) =>
+      this.referencedNames.has(declaration.name)
+    );
+    return enums.map((declaration) => this.renderEnum(declaration)).join("");
   }
 
   private renderEnum(declaration: IEnumDeclaration) {
     const name = this.toSchemaName(declaration.name);
-    const result = declaration.members.map((member) => `export const ${name}${member.name} = Joi.valid(${member.value});\n`);
-    result.push(`export const ${name} = Joi.alternatives(${declaration.members.map((member) => `${name}${member.name}`).join(', ')})\n\n`);
-    return result.join('');
+    const result = declaration.members.map(
+      (member) =>
+        `export const ${name}${member.name} = Joi.valid(${member.value});\n`
+    );
+    result.push(
+      `export const ${name} = Joi.alternatives(${declaration.members
+        .map((member) => `${name}${member.name}`)
+        .join(", ")})\n\n`
+    );
+    return result.join("");
   }
 
   private renderInterfaces() {
     const interfaces = this.schema.interfaces
-      .filter((declaration) => this.referencedNames.has(declaration.name))
+      // .filter((declaration) => this.referencedNames.has(declaration.name))
       .sort((a, b) => {
-        if (a.heritages.some((decl) => decl.type === 'type-reference' && decl.name === b.name)) {
+        if (
+          a.heritages.some(
+            (decl) => decl.type === "type-reference" && decl.name === b.name
+          )
+        ) {
           return -1;
         }
-        if (b.heritages.some((decl) => decl.type === 'type-reference' && decl.name === a.name)) {
+        if (
+          b.heritages.some(
+            (decl) => decl.type === "type-reference" && decl.name === a.name
+          )
+        ) {
           return 1;
         }
         return 0;
       });
-    return interfaces.map((declaration) => this.renderInterface(declaration)).join('');
+    return interfaces
+      .map((declaration) => this.renderInterface(declaration))
+      .join("");
   }
 
   private renderInterface(declaration: IInterfaceDeclaration) {
-    const heritage = declaration.heritages.map((heritage) => heritage.type === 'type-reference' ? `.concat(${this.toSchemaName(heritage.name)})` : '');
+    const heritage = declaration.heritages.map((heritage) =>
+      heritage.type === "type-reference"
+        ? `.concat(${this.toSchemaName(heritage.name)})`
+        : ""
+    );
     const members = this.renderMembers(declaration.members, 1);
-    return `export const ${this.toSchemaName(declaration.name)} = Joi.object()${heritage}${members}.strict();\n\n`
+    return `export const ${this.toSchemaName(
+      declaration.name
+    )} = Joi.object()${heritage}${members}.strict();\n\n`;
   }
 
   private renderTypes() {
-    const types = this.schema.types.filter((declaration) => this.referencedNames.has(declaration.name));
-    return types.map((declaration) => this.renderType(declaration)).join('');
+    const types = this.schema.types.filter((declaration) =>
+      this.referencedNames.has(declaration.name)
+    );
+    return types.map((declaration) => this.renderType(declaration)).join("");
   }
 
   private renderType(declaration: ITypeDeclaration) {
-    return `export const ${this.toSchemaName(declaration.name)} = ${this.renderSchemaType(declaration.type, 1)}.strict();\n\n`
+    return `export const ${this.toSchemaName(
+      declaration.name
+    )} = ${this.renderSchemaType(declaration.type, 1)}.strict();\n\n`;
   }
 
   private renderSchemaType(type: SchemaType, indentation: number): string {
     let tempCount = 0;
     let tsignore = false;
-    const temps: { name: string, type: string }[] = [];
+    const temps: { name: string; type: string }[] = [];
     const context: IJoiRenderContext = {
       addTempType: (type) => {
         const temp = `t${++tempCount}`;
         temps.push({
           name: temp,
-          type: `Joi.${typeof type === 'string' ? type : this.renderJoiRule(type, indentation + 1, context)}`
+          type: `Joi.${
+            typeof type === "string"
+              ? type
+              : this.renderJoiRule(type, indentation + 1, context)
+          }`,
         });
         return temp;
       },
       tsignore() {
         tsignore = true;
-      }
-    }
+      },
+    };
 
     const rule = this.renderJoiRule(type, indentation, context);
     if (tempCount > 0) {
       const indent = this.indent(indentation);
-      const tempsRender = temps.map((temp) => `\n${indent}const ${temp.name} = ${temp.type}.strict();`).join('');
-      return `(() => {${tempsRender}\n${indent}${tsignore ? '// @ts-ignore' : ''}\n${indent}return Joi.${rule}\n${this.indent(indentation - 1)}})()`
+      const tempsRender = temps
+        .map((temp) => `\n${indent}const ${temp.name} = ${temp.type}.strict();`)
+        .join("");
+      return `(() => {${tempsRender}\n${indent}${
+        tsignore ? "// @ts-ignore" : ""
+      }\n${indent}return Joi.${rule}\n${this.indent(indentation - 1)}})()`;
     }
 
     return `Joi.${this.renderJoiRule(type, indentation, context)}`;
   }
 
-  private renderJoiRule(type: SchemaType, indentation: number, context: IJoiRenderContext): string {
+  private renderJoiRule(
+    type: SchemaType,
+    indentation: number,
+    context: IJoiRenderContext
+  ): string {
     switch (type.type) {
-      case 'any': return 'any()';
-      case 'func': return 'func()';
-      case 'date': return 'date()';
-      case 'buffer': return 'binary()';
-      case 'symbol': return 'symbol()';
-      case 'null': return 'valid(null)';
-      case 'never': return 'forbidden()';
-      case 'boolean': return 'boolean()';
-      case 'undefined': return 'valid(undefined)';
-      case 'literal': return `valid(${type.rawLiteral})`;
-      case 'type-reference': return `lazy(() => ${this.toSchemaName(type.name)})`;
-      case 'type-access': return `lazy(() => ${this.toSchemaName(type.name)}${type.access})`;
-      case 'string': return `string()${type.regex ? `.regex(${type.regex})` : ''}`;
-      case 'object': return `object()${this.renderMembers(type.members, indentation)}`;
-      case 'array': return `array().items(${this.renderSchemaType(type.of, indentation)})`;
-      case 'union': return `alternatives(\n${type.of.map((t) => this.indent(indentation) + this.renderSchemaType(t, indentation)).join(',\n')}\n${this.indent(indentation - 1)})`;
-      case 'tuple': return `array().ordered(\n${type.of.map((t) => this.indent(indentation) + this.renderSchemaType(t, indentation)).join(',\n')}\n${this.indent(indentation - 1)})`;
-      case 'number': return `number()${type.integer ? '.integer()' : ''}${type.min !== undefined ? `.min(${type.min})` : ''}${type.max !== undefined ? `.max(${type.max})` : ''}`;
-      case 'intersection': return this.renderIntersection(type.of, indentation, context);
+      case "any":
+        return "any()";
+      case "func":
+        return "func()";
+      case "date":
+        return "date()";
+      case "buffer":
+        return "binary()";
+      case "symbol":
+        return "symbol()";
+      case "null":
+        return "valid(null)";
+      case "never":
+        return "forbidden()";
+      case "boolean":
+        return "boolean()";
+      case "undefined":
+        return "valid(undefined)";
+      case "literal":
+        return `valid(${type.rawLiteral})`;
+      case "type-reference":
+        return `lazy(() => ${this.toSchemaName(type.name)})`;
+      case "type-access":
+        return `lazy(() => ${this.toSchemaName(type.name)}${type.access})`;
+      case "string":
+        return `string()${type.regex ? `.regex(${type.regex})` : ""}`;
+      case "object":
+        return `object()${this.renderMembers(type.members, indentation)}`;
+      case "array":
+        return `array().items(${this.renderSchemaType(type.of, indentation)})`;
+      case "union":
+        return `alternatives(\n${type.of
+          .map(
+            (t) =>
+              this.indent(indentation) + this.renderSchemaType(t, indentation)
+          )
+          .join(",\n")}\n${this.indent(indentation - 1)})`;
+      case "tuple":
+        return `array().ordered(\n${type.of
+          .map(
+            (t) =>
+              this.indent(indentation) + this.renderSchemaType(t, indentation)
+          )
+          .join(",\n")}\n${this.indent(indentation - 1)})`;
+      case "number":
+        return `number()${type.integer ? ".integer()" : ""}${
+          type.min !== undefined ? `.min(${type.min})` : ""
+        }${type.max !== undefined ? `.max(${type.max})` : ""}`;
+      case "intersection":
+        return this.renderIntersection(type.of, indentation, context);
     }
   }
 
-  private renderIntersection(of: SchemaType[], indentation: number, context: IJoiRenderContext) {
-    const objects = of.filter((type) => type.type === 'object');
-    const unions = of.filter((type) => type.type === 'union');
-    if ((objects.length + unions.length) < of.length) {
+  private renderIntersection(
+    of: SchemaType[],
+    indentation: number,
+    context: IJoiRenderContext
+  ) {
+    const objects = of.filter((type) => type.type === "object");
+    const unions = of.filter((type) => type.type === "union");
+    if (objects.length + unions.length < of.length) {
       throw new Error(`Invalid intersection`);
     }
 
@@ -445,8 +597,14 @@ export class SchemaBuilder {
       indentation += 1;
     }
 
-    const baseConcats = objects.map((type) => `\n${this.indent(indentation)}.concat(${this.renderSchemaType(type, indentation)})`);
-    const baseObject = `object()${baseConcats.join('')}`;
+    const baseConcats = objects.map(
+      (type) =>
+        `\n${this.indent(indentation)}.concat(${this.renderSchemaType(
+          type,
+          indentation
+        )})`
+    );
+    const baseObject = `object()${baseConcats.join("")}`;
 
     if (unions.length === 0) {
       return baseObject;
@@ -457,59 +615,81 @@ export class SchemaBuilder {
     const unionsJoi = unions.map((union) => context.addTempType(union));
     const declarations = `\n${indent}const options = { ...helpers.prefs, allowUnknown: true };\n${indent}let result;`;
 
-    const checks = [baseJoi, ...unionsJoi].map((temp) => {
-      return `\n${indent}result = ${temp}.validate(value, options);\n${indent}if (result.error) throw result.error;`;
-    }).join('')
+    const checks = [baseJoi, ...unionsJoi]
+      .map((temp) => {
+        return `\n${indent}result = ${temp}.validate(value, options);\n${indent}if (result.error) throw result.error;`;
+      })
+      .join("");
 
     context.tsignore();
-    return `custom((value, helpers) => {${declarations}${checks}\n${indent}return value;\n${this.indent(indentation)}})`
+    return `custom((value, helpers) => {${declarations}${checks}\n${indent}return value;\n${this.indent(
+      indentation
+    )}})`;
   }
 
-  private renderMembers(members: IMemberDeclaration[] | undefined, indentation: number) {
+  private renderMembers(
+    members: IMemberDeclaration[] | undefined,
+    indentation: number
+  ) {
     if (members) {
       const indexer = members.find((member) => member.indexer);
-      const properties = members.map((member) => this.renderMember(member, indentation)).join('');
-      return `.keys({\n${properties}${this.indent(indentation - 1)}})${this.renderIndexer(indexer, indentation)}`;
+      const properties = members
+        .map((member) => this.renderMember(member, indentation))
+        .join("");
+      return `.keys({\n${properties}${this.indent(
+        indentation - 1
+      )}})${this.renderIndexer(indexer, indentation)}`;
     }
-    return '';
+    return "";
   }
 
   private renderMember(member: IMemberDeclaration, indentation: number) {
     const indent = this.indent(indentation);
     if (member.indexer) {
-      return ''
+      return "";
     }
     const type = this.renderSchemaType(member.type, indentation + 1);
-    const required = member.required ? '.required()' : '';
-    return `${indent}${member.name}: ${type}${required},\n`
+    const required = member.required ? ".required()" : "";
+    return `${indent}${member.name}: ${type}${required},\n`;
   }
 
-  private renderIndexer(member: IMemberDeclaration | undefined, indentation: number): string {
+  private renderIndexer(
+    member: IMemberDeclaration | undefined,
+    indentation: number
+  ): string {
     if (member && member.indexer) {
       const pattern = this.renderIndexerPattern(member.indexer);
-      return `.pattern(${pattern}, ${this.renderSchemaType(member.type, indentation)})`;
+      return `.pattern(${pattern}, ${this.renderSchemaType(
+        member.type,
+        indentation
+      )})`;
     }
-    return '';
+    return "";
   }
 
   private renderIndexerPattern(indexer: Indexer) {
     switch (indexer.type) {
-      case 'number': return '/^\d+(.\d+)?$/';
-      case 'string': {
+      case "number":
+        return "/^d+(.d+)?$/";
+      case "string": {
         if (indexer.regex) {
           return indexer.regex;
         }
-        return '/^.*$/';
+        return "/^.*$/";
       }
     }
   }
 
   private toSchemaName(name: string) {
-    return `${name}${this.options.schemaSuffix === undefined ? Defaults.schemaSuffix : this.options.schemaSuffix}`;
+    return `${name}${
+      this.options.schemaSuffix === undefined
+        ? Defaults.schemaSuffix
+        : this.options.schemaSuffix
+    }`;
   }
 
   private indent(indentation: number) {
-    return ''.padEnd(indentation * 2, ' ');
+    return "".padEnd(indentation * 2, " ");
   }
 
   public resolveSourceFile(file: string) {
